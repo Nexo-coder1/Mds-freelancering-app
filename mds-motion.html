@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MDS Motion</title>
+<style>
+:root{--navy:#102B59;--blue:#2463C7;--bg:#F4F6FA;--card:#fff;--line:#E3E8F0;--text:#0E1A2E;--muted:#667085;--ok:#1F9D55;--warn:#D97706;--bad:#D14343;--soft:#EEF3FB}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.45}
+a{color:var(--blue);text-decoration:none}
+h1{font-size:24px;margin:0 0 4px;color:var(--navy)}h2{font-size:17px;margin:0 0 10px;color:var(--navy)}h3{font-size:14px;margin:0 0 6px}
+.shell{display:flex;min-height:100vh}
+.side{width:220px;background:var(--navy);color:#fff;padding:20px 14px;position:sticky;top:0;height:100vh}
+.brand{font-weight:800;font-size:18px;margin-bottom:24px;padding:0 8px}
+.side a{display:block;color:#C9D6EE;padding:10px 12px;border-radius:10px;margin-bottom:2px;font-weight:500}
+.side a.on,.side a:hover{background:rgba(255,255,255,.12);color:#fff}
+.main{flex:1;padding:24px;min-width:0;padding-bottom:90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,43,89,.04);margin-bottom:16px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.stat b{display:block;font-size:26px;color:var(--navy)}.stat span{color:var(--muted);font-size:13px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.row:last-child{border-bottom:0}
+.btn{background:var(--blue);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer;font-size:14px;display:inline-block}
+.btn.ghost{background:var(--soft);color:var(--navy)}.btn.danger{background:var(--bad)}.btn.wa{background:#25D366}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--soft);color:var(--navy)}
+.pill.ok{background:#E6F6EC;color:var(--ok)}.pill.warn{background:#FDF3E1;color:var(--warn)}.pill.bad{background:#FBE7E7;color:var(--bad)}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;margin-top:4px}
+label{display:block;font-weight:600;font-size:13px;margin-bottom:12px;color:var(--navy)}
+.err{color:var(--bad);font-size:12px;font-weight:500}
+.two{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{border:1px solid var(--line);background:#fff;padding:7px 12px;border-radius:99px;cursor:pointer;font:inherit;font-size:13px}
+.tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.bubble{padding:10px 12px;border-radius:14px;max-width:80%;margin-bottom:8px;white-space:pre-wrap}
+.in{background:var(--soft)}.out{background:var(--blue);color:#fff;margin-left:auto}
+.msg{background:var(--soft);border-radius:12px;padding:12px;white-space:pre-wrap;font-size:14px;margin-bottom:8px}
+.note{font-size:12px;color:var(--muted)}
+.src{font-size:11px;padding:2px 8px;border-radius:6px;background:#EEF1F6;color:#44506A;margin-left:6px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.thumbs img,.thumbs video{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.thumb{position:relative;width:96px;font-size:11px}
+.thumb button{position:absolute;top:2px;right:2px;background:var(--bad);color:#fff;border:0;border-radius:50%;width:20px;height:20px;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(14,26,46,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}
+.modal .card{max-width:380px;width:100%}
+.bottom{display:none}
+.empty{color:var(--muted);padding:18px 0;text-align:center}
+@media(max-width:760px){
+ .shell{display:block}.side{display:none}.main{padding:16px}
+ .bottom{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--navy);padding:8px 4px calc(8px + env(safe-area-inset-bottom,0px));justify-content:space-around;z-index:5}
+ .bottom a{color:#C9D6EE;font-size:11px;text-align:center;padding:4px}.bottom a.on{color:#fff;font-weight:700}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side" id="side"></nav>
+  <main class="main"><div id="app"></div></main>
+</div>
+<nav class="bottom" id="bottom"></nav>
+
+<script>
+// ---------- DATA LAYER (mock; swap for Firebase/Supabase later) ----------
+const TODAY = "2026-11-01";
+const NAV = [
+  ["#/dashboard","Dashboard"],["#/add","Add Lead"],["#/leads","Leads"],["#/followups","Follow-ups"],
+  ["#/pipeline","Pipeline"],["#/settings","Settings"],["#/admin","Admin"]
+];
+const STATUSES = ["New Lead","Analyzed","Contacted","Replied","Interested","Negotiating","Paid Trial","Monthly Client","Not Interested","Lost"];
+const CATS = ["Travel vlogs","Food & recipes","Fitness","Fashion","Wedding","Business / podcast","Other"];
+
+const DB = {
+  settings: { portfolio:"https://example.com/madhav-portfolio", services:"Reels editing, YouTube long-form, Shorts, Captions & subtitles", niches:"Travel, Food, Fitness", startPrice:"₹1,500 per reel", monthly:"10 reels – ₹12,000 / month", delivery:"48–72 hours", revisions:"2 revisions included", intro:"Hi, I'm Madhav, a freelance video editor focused on short-form content that keeps viewers watching." },
+  admin: { appName:"MDS Motion", brand:"#102B59", accent:"#2463C7", welcome:"Welcome back, Madhav" },
+  leads: [
+    { id:"lead_001", name:"Aarav Mehta", ig:"https://instagram.com/aarav.frames", cc:"91", phone:"9876543210", category:"Travel vlogs", status:"Interested", notes:"Met via reel comment. Wants 10 reels/month.", reels:["https://instagram.com/reel/demo1"], files:[], created:"2026-10-20",
+      analysis:{ bio:"Travel filmmaker · Ladakh & Himachal · Booking collabs", style:"Cinematic B-roll, quick cuts, trending audio", quality:"Strong colour grading; inconsistent captions", improvements:"Add hook text in first 2s; tighter pacing in intros", consistency:"Posts 2–3x weekly, steady style", requirements:"Captions, colour grade, Shorts repurposing", opportunities:"Hotel and tourism brand collaborations", services:"Monthly reel package, subtitles", score:82, potential:"High Potential", source:"AI observation" } },
+    { id:"lead_002", name:"Priya Sharma", ig:"https://instagram.com/priyabakes", cc:"91", phone:"9123456780", category:"Food & recipes", status:"Contacted", notes:"Home bakery. Price-sensitive.", reels:[], files:[], created:"2026-10-25",
+      analysis:{ bio:"Home baker · Eggless desserts · Delivers in Delhi", style:"Overhead shots, ASMR audio", quality:"Clean framing, slow pacing", improvements:"Shorter recipe reels; on-screen steps", consistency:"Irregular posting", requirements:"Reel cuts, captions in Hindi & English", opportunities:"Local food delivery partnerships", services:"Starter package, Shorts editing", score:58, potential:"Medium Potential", source:"Verified (provided)" } },
+    { id:"lead_003", name:"Rohan Kapoor", ig:"https://instagram.com/rohan.fit", cc:"91", phone:"9988776655", category:"Fitness", status:"New Lead", notes:"", reels:[], files:[], created:"2026-10-30",
+      analysis:null }
+  ],
+  conv: { lead_001:[{dir:"out",text:"Hi Aarav, loved your Ladakh reel. I edit short-form travel content. Want a sample?"},{dir:"in",text:"Thanks! What are your rates for 10 reels?"}], lead_002:[{dir:"out",text:"Hi Priya, your eggless cake reel is great. Shall I share a sample edit?"}], lead_003:[] },
+  followups: [
+    { id:"f1", leadId:"lead_001", due:"2026-11-01", status:"open", message:"Send the 10-reel package breakdown.", last:"2026-10-28" },
+    { id:"f2", leadId:"lead_002", due:"2026-10-29", status:"open", message:"Ask if she wants the starter package.", last:"2026-10-25" },
+    { id:"f3", leadId:"lead_003", due:"2026-11-05", status:"open", message:"Send first intro DM.", last:"2026-10-30" }
+  ],
+  activity: ["Aarav Mehta marked Interested","Priya Sharma contacted via WhatsApp","Rohan Kapoor lead added"]
+};
+let flash = null;
+const uid = p => p + "_" + Math.random().toString(36).slice(2,8);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const getLead = id => DB.leads.find(l=>l.id===id);
+const cleanPhone = (cc,p) => (String(cc)+String(p)).replace(/\D/g,"");
+const waLink = (cc,p,text) => `https://wa.me/${cleanPhone(cc,p)}?text=${encodeURIComponent(text)}`;
+function toast(msg){ flash = msg; render(); }
+
+// ---------- MESSAGE GENERATOR (template-based demo; AI later) ----------
+function buildMessages(l, lang){
+  const s = DB.settings, first = l.name.split(" ")[0];
+  const en = {
+    "First Instagram DM": `Hi ${first}, your ${l.category.toLowerCase()} content stands out. I'm ${s.intro.replace(/^Hi, I'm /,"").replace(/\.$/,"")}. Could I share a short edit sample?`,
+    "First WhatsApp Message": `Hi ${first}, Madhav here. I came across your Instagram. I edit ${s.niches.toLowerCase()} reels and would love to help grow your views. Okay if I send a sample?`,
+    "Follow-up Message": `Hi ${first}, just checking in on my last message. Happy to adjust the sample to your style. Would this week work?`,
+    "Portfolio Sharing Message": `Hi ${first}, here's my portfolio with ${s.niches.toLowerCase()} edits: ${s.portfolio}. Let me know which style fits you best.`,
+    "Paid Trial Proposal": `Hi ${first}, I'd like to offer a paid trial: 3 reels at ${s.startPrice}, delivered in ${s.delivery}, with ${s.revisions.toLowerCase()}.`,
+    "Pricing Proposal": `Hi ${first}, based on your content, here are my packages: starter at ${s.startPrice}, and monthly at ${s.monthly}.`,
+    "Monthly Contract Proposal": `Hi ${first}, for consistent output I suggest a monthly plan: ${s.monthly}, delivered in ${s.delivery}, with ${s.revisions.toLowerCase()}. Shall we start?`
+  };
+  const hi = {
+    "First Instagram DM": `नमस्ते ${first}, आपका ${l.category.toLowerCase()} कंटेंट बहुत अच्छा है। क्या मैं एक छोटा एडिट सैंपल भेज सकता हूँ?`,
+    "First WhatsApp Message": `नमस्ते ${first}, मैं Madhav हूँ। आपका Instagram देखा। क्या मैं एक सैंपल भेज सकता हूँ?`
+  };
+  if(lang==="HI") return Object.fromEntries(Object.keys(en).map(k=>[k, hi[k] || en[k]+"\n(Hindi translation pending service integration)"]));
+  return en;
+}
+
+// ---------- DEMO CONVERSATION ASSISTANT (mock analysis) ----------
+function mockAnalyze(text){
+  const t = text.toLowerCase();
+  let intent = "Asking about pricing", suggestion = "Thanks for asking! I offer a monthly package of 10 reels. Shall I send the pricing breakdown?";
+  let hi = "उन्होंने पूछा है कि आपकी रेट क्या है। सुझाया गया जवाब: मैं 10 रील्स का मासिक पैकेज देता हूँ, क्या मैं प्राइसिंग भेजूँ?";
+  if(/sample|portfolio|show/.test(t)){ intent="Wants to see work"; suggestion="Sure! Here's my portfolio: "+DB.settings.portfolio; hi="वे मेरा काम देखना चाहते हैं। सुझाया गया जवाब: मैं अपना पोर्टफोलियो भेज रहा हूँ।"; }
+  if(/not interested|no thanks|busy/.test(t)){ intent="Not interested for now"; suggestion="No problem at all. I'll check back in a few weeks. Thank you!"; hi="उन्हें अभी रुचि नहीं है। सुझाया गया जवाब: कोई बात नहीं, कुछ हफ्तों बाद फिर बात करूँगा।"; }
+  return { intent, suggestion, hi, source:"Demo (mock analysis, not AI)" };
+}
+
+// ---------- PAGES ----------
+function pageDashboard(){
+  const c = s => DB.leads.filter(l=>l.status===s).length;
+  const due = DB.followups.filter(f=>f.status==="open" && f.due<=TODAY);
+  const counts = [
+    ["Total Leads",DB.leads.length],["New Leads",c("New Lead")],["Interested",c("Interested")],["Follow-ups Due",due.length],
+    ["Paid Trial",c("Paid Trial")],["Converted",c("Monthly Client")],["Lost",c("Lost")]
+  ];
+  return `
+  <h1>${esc(DB.admin.welcome)}</h1>
+  <p class="note">Here's your pipeline today.</p>
+  <div class="grid" style="margin:14px 0">${counts.map(([k,v])=>`<div class="card stat" style="margin:0"><b>${v}</b><span>${k}</span></div>`).join("")}</div>
+  <div class="card"><div class="row"><h2 style="margin:0">Recent Leads</h2><a class="btn" href="#/add">+ Quick Add Lead</a></div>
+    ${DB.leads.slice(0,4).map(leadRow).join("")||`<div class="empty">No leads yet</div>`}</div>
+  <div class="two">
+    <div class="card"><h2>Upcoming Follow-ups</h2>${DB.followups.filter(f=>f.status==="open").map(f=>`<div class="row"><span>${esc(getLead(f.leadId)?.name)}</span><span class="pill ${f.due<=TODAY?'warn':''}">${f.due<=TODAY?'Due':f.due}</span></div>`).join("")}</div>
+    <div class="card"><h2>Recent Activity</h2>${DB.activity.map(a=>`<div class="row">${esc(a)}</div>`).join("")}</div>
+  </div>`;
+}
+function leadRow(l){
+  return `<div class="row"><a href="#/lead/${l.id}"><b>${esc(l.name)}</b></a><span class="note">${esc(l.category)}</span><span class="pill">${esc(l.status)}</span></div>`;
+}
+function pageAdd(){
+  return `<h1>Add New Lead</h1><p class="note">Upload only content you have permission to use. Analysis is not run yet.</p>
+  <div class="card"><form onsubmit="saveLead(event)">
+    <div class="two">
+      <label>Client Name *<input name="name" required></label>
+      <label>Client Category<select name="category">${CATS.map(c=>`<option>${c}</option>`).join("")}</select></label>
+      <label>Instagram Profile URL *<input name="ig" placeholder="https://instagram.com/username" required></label>
+      <label>WhatsApp Country Code *<input name="cc" value="91" required></label>
+      <label>WhatsApp Number *<input name="phone" inputmode="numeric" required></label>
+    </div>
+    <label>Profile Screenshot<input type="file" accept="image/*" name="shot" onchange="previewFiles(this,'shotPrev')"></label>
+    <div id="shotPrev" class="thumbs"></div>
+    <label>Profile Photo (optional)<input type="file" accept="image/*" name="photo" onchange="previewFiles(this,'photoPrev')"></label>
+    <div id="photoPrev" class="thumbs"></div>
+    <label>Previous Videos (one or more)<input type="file" accept="video/*" multiple name="vids" onchange="previewFiles(this,'vidPrev')"></label>
+    <div id="vidPrev" class="thumbs"></div>
+    <label>Previous Reel URLs (one per line)<textarea name="reels" rows="3"></textarea></label>
+    <label>Personal Notes<textarea name="notes" rows="3"></textarea></label>
+    <div id="formErr" class="err"></div>
+    <button class="btn" type="submit">Save Lead</button>
+  </form></div>`;
+}
+const pendingFiles = {};
+function previewFiles(input,target){
+  const box = document.getElementById(target); box.innerHTML="";
+  pendingFiles[target] = [...input.files];
+  [...input.files].forEach((f,i)=>{
+    const url = URL.createObjectURL(f);
+    const el = f.type.startsWith("video")? `<video src="${url}" muted></video>` : `<img src="${url}" alt="">`;
+    box.insertAdjacentHTML("beforeend",`<div class="thumb">${el}<button type="button" onclick="removeFile('${target}',${i},'${input.name}')">×</button><div>${esc(f.name)}<br>${(f.size/1048576).toFixed(2)} MB · Ready</div></div>`);
+  });
+}
+function removeFile(target,i,name){
+  const input = document.querySelector(`input[name="${name}"]`);
+  const dt = new DataTransfer(); [...input.files].forEach((f,j)=>{ if(j!==i) dt.items.add(f); });
+  input.files = dt.files; previewFiles(input,target);
+}
+function saveLead(e){
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  const err = [];
+  if(!f.name.trim()) err.push("Name is required.");
+  if(!/instagram\.com\/[\w.]+/i.test(f.ig)) err.push("Enter a valid Instagram URL.");
+  if(!/^\d{1,4}$/.test(f.cc)) err.push("Country code must be digits only.");
+  if(!/^\d{7,12}$/.test(f.phone)) err.push("WhatsApp number must be 7–12 digits.");
+  if(err.length){ document.getElementById("formErr").textContent = err.join(" "); return; }
+  const lead = { id:uid("lead"), name:f.name.trim(), ig:f.ig.trim(), cc:f.cc, phone:f.phone, category:f.category, notes:f.notes, status:"New Lead",
+    reels:f.reels.split("\n").map(s=>s.trim()).filter(Boolean), files:[], created:TODAY, analysis:null };
+  DB.leads.unshift(lead); DB.conv[lead.id]=[]; DB.activity.unshift(lead.name+" lead added");
+  location.hash = "#/lead/"+lead.id; toast("Lead saved");
+}
+function pageLeads(){
+  const q = (window.leadQuery||"").toLowerCase(), st = window.leadStatus||"";
+  const list = DB.leads.filter(l=>(!q||l.name.toLowerCase().includes(q)||l.category.toLowerCase().includes(q)) && (!st||l.status===st));
+  return `<h1>Leads</h1>
+  <div class="card"><div class="two">
+    <input placeholder="Search name or category" value="${esc(window.leadQuery||"")}" oninput="window.leadQuery=this.value;render()">
+    <select onchange="window.leadStatus=this.value;render()"><option value="">All statuses</option>${STATUSES.map(s=>`<option ${st===s?'selected':''}>${s}</option>`).join("")}</select>
+  </div></div>
+  <div class="card">${list.map(leadRow).join("")||`<div class="empty">No matching leads</div>`}</div>`;
+}
+function pageLead(id){
+  const l = getLead(id); if(!l) return `<div class="card empty">Lead not found. <a href="#/leads">Back to leads</a></div>`;
+  const tab = window.leadTab||"profile";
+  const tabs = ["profile","analysis","messages","conversation","followups","notes","status"];
+  const body = {
+    profile: `<div class="two"><div><h3>Instagram</h3><a href="${esc(l.ig)}" target="_blank" rel="noopener">${esc(l.ig)}</a></div>
+      <div><h3>WhatsApp</h3>${esc("+"+l.cc+" "+l.phone)}</div><div><h3>Category</h3>${esc(l.category)}</div><div><h3>Created</h3>${l.created}</div></div>
+      <h3 style="margin-top:14px">Reel URLs</h3>${l.reels.map(r=>`<div class="note">${esc(r)}</div>`).join("")||'<div class="note">None</div>'}`,
+    analysis: pageAnalysis(l),
+    messages: pageMessages(l),
+    conversation: pageConversation(l),
+    followups: `<h3>Follow-up History</h3>${DB.followups.filter(f=>f.leadId===l.id).map(f=>`<div class="row"><span>${f.message}</span><span class="pill">${f.due}</span></div>`).join("")||'<div class="empty">No follow-ups</div>'}`,
+    notes: `<h3>Personal Notes</h3><textarea rows="5" onchange="getLead('${l.id}').notes=this.value;toast('Note saved')">${esc(l.notes)}</textarea>`,
+    status: `<h3>Client Status</h3><select onchange="setStatus('${l.id}',this.value)">${STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join("")}</select>
+      <h3 style="margin-top:14px">Closing Progress</h3><div class="note">${STATUSES.indexOf(l.status)+1} of ${STATUSES.length} stages</div>`
+  }[tab];
+  return `<a href="#/leads">← Leads</a><h1 style="margin-top:6px">${esc(l.name)}</h1><span class="pill">${esc(l.status)}</span>
+    <div class="card" style="margin-top:12px"><div class="tabs">${tabs.map(t=>`<button class="${t===tab?'on':''}" onclick="window.leadTab='${t}';render()">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</div>${body}</div>`;
+}
+function setStatus(id,s){ getLead(id).status=s; DB.activity.unshift(getLead(id).name+" moved to "+s); toast("Status updated to "+s); }
+function pageAnalysis(l){
+  if(!l.analysis) return `<div class="empty">No analysis yet. AI analysis will be connected later.</div><button class="btn" onclick="toast('Demo: outreach strategy ready in Messages tab');window.leadTab='messages';render()">Generate Outreach Strategy</button>`;
+  const a = l.analysis, cls = a.potential.startsWith("High")?"ok":a.potential.startsWith("Medium")?"warn":"bad";
+  const rows = [["Bio",a.bio],["Content style",a.style],["Editing quality",a.quality],["Improvements",a.improvements],["Consistency",a.consistency],["Editing requirements",a.requirements],["Business opportunities",a.opportunities],["Recommended services",a.services]];
+  return `<div class="row"><b>Priority score: ${a.score}/100</b><span class="pill ${cls}">${a.potential}</span></div>
+    <p class="note">Information source: <span class="src">${a.source}</span> · Missing data is flagged, not guessed.</p>
+    ${rows.map(([k,v])=>`<div class="row"><b>${k}</b><span style="text-align:right;max-width:60%">${esc(v)}</span></div>`).join("")}
+    <button class="btn" style="margin-top:12px" onclick="window.leadTab='messages';render()">Generate Outreach Strategy</button>`;
+}
+function pageMessages(l){
+  const lang = window.msgLang||"EN";
+  const msgs = buildMessages(l, lang);
+  return `<div class="tabs"><button class="${lang==='EN'?'on':''}" onclick="window.msgLang='EN';render()">English</button><button class="${lang==='HI'?'on':''}" onclick="window.msgLang='HI';render()">Hindi</button></div>
+  ${Object.entries(msgs).map(([k,v],i)=>`<h3>${k}</h3><textarea id="m${i}" rows="3">${esc(v)}</textarea>
+    <div class="row"><span></span><span><button class="btn ghost" onclick="copyText('m${i}')">Copy</button>
+    <button class="btn ghost" onclick="document.getElementById('m${i}').focus()">Edit</button>
+    <button class="btn ghost" onclick="toast('Regenerated (demo template)')">Regenerate</button>
+    <a class="btn wa" target="_blank" rel="noopener" href="${waLink(l.cc,l.phone,v)}">Send to WhatsApp</a></span></div>`).join("")}`;
+}
+function copyText(id){ const t=document.getElementById(id); t.select(); navigator.clipboard?.writeText(t.value); toast("Copied"); }
+function pageConversation(l){
+  const conv = DB.conv[l.id]||[], a = window.lastAnalysis?.[l.id];
+  return `<h3>Conversation History</h3><div style="margin-bottom:14px">${conv.map(m=>`<div class="bubble ${m.dir==='out'?'out':'in'}">${esc(m.text)}</div>`).join("")||'<div class="empty">No messages yet</div>'}</div>
+  <h3>Paste client reply</h3>
+  <textarea id="reply" rows="3" placeholder="Paste the WhatsApp reply here"></textarea>
+  <label style="margin-top:8px">Additional instructions (optional)<input id="extra" placeholder="e.g. Offer 10 reels per month, friendly tone"></label>
+  <div class="row"><span class="note">Voice note: record/upload is a frontend placeholder. Transcription will be added later.</span><button class="btn ghost" onclick="toast('Voice input placeholder: not connected yet')">Upload Audio</button></div>
+  <button class="btn" onclick="analyzeReply('${l.id}')">Analyze Reply</button>
+  ${a?`<div class="card" style="margin-top:14px">
+    <h3>Original Reply</h3><div class="msg">${esc(a.original)}</div>
+    <h3>Hindi Translation</h3><div class="msg">${esc(a.hi)}</div>
+    <h3>Client Intent</h3><div class="msg">${esc(a.intent)}</div>
+    <h3>Suggested Response</h3><textarea id="sug" rows="3">${esc(a.suggestion)}</textarea>
+    <h3>Hindi Meaning of Suggested Response</h3><div class="msg">${esc(a.suggHi)}</div>
+    <div class="note"><span class="src">${a.source}</span></div>
+    <div class="row"><span></span><span><button class="btn ghost" onclick="copyText('sug')">Copy</button>
+    <a class="btn wa" target="_blank" rel="noopener" href="${waLink(l.cc,l.phone,a.suggestion)}" onclick="logOut('${l.id}')">Send to WhatsApp</a></span></div></div>`:""}`;
+}
+function analyzeReply(id){
+  const text = document.getElementById("reply").value.trim();
+  if(!text){ toast("Paste a reply first"); return; }
+  const r = mockAnalyze(text);
+  window.lastAnalysis = window.lastAnalysis||{};
+  window.lastAnalysis[id] = { original:text, hi:r.hi, intent:r.intent, suggestion:r.suggestion, suggHi:"(Hindi meaning of suggested response: demo text)", source:r.source };
+  DB.conv[id] = [...(DB.conv[id]||[]), {dir:"in",text}];
+  window.leadTab="conversation"; render();
+}
+function logOut(id){ DB.conv[id]=[...(DB.conv[id]||[]),{dir:"out",text:document.getElementById("sug").value}]; toast("Opened WhatsApp; press Send there"); }
+function pageFollowups(){
+  const open = DB.followups.filter(f=>f.status==="open");
+  const groups = { Overdue: open.filter(f=>f.due<TODAY), Today: open.filter(f=>f.due===TODAY), Upcoming: open.filter(f=>f.due>TODAY), Completed: DB.followups.filter(f=>f.status==="done") };
+  const row = f => { const l=getLead(f.leadId); return `<div class="row"><div><b>${esc(l?.name)}</b><div class="note">${esc(f.message)}</div><div class="note">Last contact ${f.last} · Next ${f.due}</div></div>
+    <span>${f.status==="done"?'<span class="pill ok">Completed</span>':`<button class="btn ghost" onclick="doneFU('${f.id}')">Mark done</button> <button class="btn ghost" onclick="reschedFU('${f.id}')">Reschedule</button>`} <a class="btn ghost" href="#/lead/${f.leadId}">Open workspace</a></span></div>`; };
+  return `<h1>Follow-ups</h1>
+  <div class="card"><h2>Schedule new follow-up</h2><div class="two">
+    <select id="fuLead">${DB.leads.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join("")}</select>
+    <input id="fuDate" type="date" value="${TODAY}"><input id="fuMsg" placeholder="Follow-up message"></div>
+    <button class="btn" style="margin-top:10px" onclick="addFU()">Schedule</button></div>
+  ${Object.entries(groups).map(([k,v])=>`<div class="card"><h2>${k} (${v.length})</h2>${v.map(row).join("")||'<div class="empty">Nothing here</div>'}</div>`).join("")}`;
+}
+function addFU(){
+  const leadId=document.getElementById("fuLead").value, due=document.getElementById("fuDate").value, message=document.getElementById("fuMsg").value.trim();
+  if(!due||!message){ toast("Date and message are required"); return; }
+  DB.followups.push({id:uid("f"),leadId,due,status:"open",message,last:TODAY}); toast("Follow-up scheduled");
+}
+function doneFU(id){ DB.followups.find(f=>f.id===id).status="done"; toast("Marked completed"); }
+function reschedFU(id){ const d=prompt("New date (YYYY-MM-DD)"); if(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)){ DB.followups.find(f=>f.id===id).due=d; toast("Rescheduled"); } }
+function pagePipeline(){
+  return `<h1>Pipeline</h1><p class="note">Change a client's status below. Changes apply across the app.</p>
+  <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${STATUSES.map(s=>{
+    const ls = DB.leads.filter(l=>l.status===s);
+    return `<div class="card" style="margin:0"><h3>${s} <span class="pill">${ls.length}</span></h3>${ls.map(l=>`<div class="row" style="display:block"><a href="#/lead/${l.id}"><b>${esc(l.name)}</b></a>
+      <select onchange="setStatus('${l.id}',this.value)">${STATUSES.map(x=>`<option ${x===s?'selected':''}>${x}</option>`).join("")}</select></div>`).join("")||'<div class="note">None</div>'}</div>`;}).join("")}</div>`;
+}
+function pageSettings(){
+  const s = DB.settings;
+  const f = (k,label,area) => area?`<label>${label}<textarea name="${k}" rows="2">${esc(s[k])}</textarea></label>`:`<label>${label}<input name="${k}" value="${esc(s[k])}"></label>`;
+  return `<h1>Portfolio & Pricing</h1><p class="note">Used later when AI writes your messages. Saved in this session only for now.</p>
+  <div class="card"><form onsubmit="saveSettings(event)"><div class="two">
+    ${f("portfolio","Portfolio URL")}${f("services","Video editing services")}${f("niches","Preferred niches")}${f("startPrice","Starting price")}
+    ${f("monthly","Monthly packages")}${f("delivery","Delivery time")}${f("revisions","Revision policy")}</div>
+    ${f("intro","Personal introduction",true)}
+    <button class="btn" type="submit">Save Settings</button></form></div>`;
+}
+function saveSettings(e){ e.preventDefault(); Object.entries(Object.fromEntries(new FormData(e.target))).forEach(([k,v])=>DB.settings[k]=v); toast("Settings saved"); }
+
+// ---------- ADMIN ----------
+function pageAdmin(){
+  const a = DB.admin;
+  return `<h1>Admin Panel</h1><p class="note">Owner-only area. Authentication will be added before deployment.</p>
+  <div class="grid" style="margin:12px 0">
+    <div class="card stat" style="margin:0"><b>${DB.leads.length}</b><span>Total Leads</span></div>
+    <div class="card stat" style="margin:0"><b>${DB.leads.filter(l=>["Paid Trial","Monthly Client"].includes(l.status)).length}</b><span>Total Clients</span></div>
+    <div class="card stat" style="margin:0"><b>${DB.followups.filter(f=>f.status==="open").length}</b><span>Open Follow-ups</span></div></div>
+  <div class="card"><h2>App UI Customization</h2><div class="two">
+    <label>Application name<input id="aName" value="${esc(a.appName)}" oninput="previewAdmin()"></label>
+    <label>Main brand color<input id="aBrand" type="color" value="${a.brand}" oninput="previewAdmin()"></label>
+    <label>Accent color<input id="aAccent" type="color" value="${a.accent}" oninput="previewAdmin()"></label>
+    <label>Dashboard welcome text<input id="aWelcome" value="${esc(a.welcome)}" oninput="previewAdmin()"></label></div>
+    <div class="card" id="adPrev" style="background:${a.brand};color:#fff"><b id="pvName">${esc(a.appName)}</b><div id="pvWel">${esc(a.welcome)}</div><span class="btn" id="pvBtn" style="background:${a.accent}">Sample button</span></div>
+    <button class="btn" onclick="applyAdmin()">Apply changes</button></div>
+  <div class="card"><h2>Data Management</h2>${DB.leads.map(l=>`<div class="row"><span>${esc(l.name)} · ${l.files.length} files</span>
+    <span><button class="btn ghost" onclick="confirmBox('Delete the conversation history for ${esc(l.name)}?',()=>{DB.conv['${l.id}']=[];toast('History deleted')})">Delete history</button>
+    <button class="btn danger" onclick="confirmBox('Delete lead ${esc(l.name)} and all its data?',()=>{DB.leads=DB.leads.filter(x=>x.id!=='${l.id}');toast('Lead deleted');location.hash='#/admin'})">Delete lead</button></span></div>`).join("")||'<div class="empty">No leads</div>'}
+    <button class="btn danger" style="margin-top:12px" onclick="confirmBox('Clear all demo data? This cannot be undone.',()=>{DB.leads=[];DB.followups=[];DB.conv={};toast('Demo data cleared')})">Clear demo data</button></div>`;
+}
+function previewAdmin(){
+  const b=document.getElementById("aBrand").value, ac=document.getElementById("aAccent").value;
+  const p=document.getElementById("adPrev"); p.style.background=b;
+  document.getElementById("pvName").textContent=document.getElementById("aName").value;
+  document.getElementById("pvWel").textContent=document.getElementById("aWelcome").value;
+  document.getElementById("pvBtn").style.background=ac;
+}
+function applyAdmin(){
+  DB.admin.appName=document.getElementById("aName").value; DB.admin.brand=document.getElementById("aBrand").value;
+  DB.admin.accent=document.getElementById("aAccent").value; DB.admin.welcome=document.getElementById("aWelcome").value;
+  document.documentElement.style.setProperty("--navy",DB.admin.brand); document.documentElement.style.setProperty("--blue",DB.admin.accent);
+  document.querySelector(".brand") && (document.querySelector(".brand").textContent=DB.admin.appName);
+  toast("Changes applied");
+}
+function confirmBox(msg,fn){
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div class="card"><h2>Are you sure?</h2><p>${msg}</p><div class="row"><span></span><span><button class="btn ghost" id="cNo">Cancel</button> <button class="btn danger" id="cYes">Confirm</button></span></div></div>`;
+  document.body.appendChild(d);
+  d.querySelector("#cNo").onclick=()=>d.remove();
+  d.querySelector("#cYes").onclick=()=>{ d.remove(); fn(); render(); };
+}
+
+// ---------- ROUTER ----------
+function render(){
+  const hash = location.hash || "#/dashboard";
+  const [, page, id] = hash.split("/");
+  const html = {
+    dashboard:pageDashboard, add:pageAdd, leads:pageLeads, followups:pageFollowups,
+    pipeline:pagePipeline, settings:pageSettings, admin:pageAdmin
+  }[page];
+  let view = html ? html() : (page==="lead" ? pageLead(id) : `<div class="card empty">Page not found</div>`);
+  const notice = flash ? `<div class="card" style="background:#E6F6EC;color:#1F9D55;font-weight:600">${esc(flash)}</div>` : "";
+  flash = null;
+  document.getElementById("app").innerHTML = notice + view;
+  const active = "#/"+(page||"dashboard");
+  const links = NAV.map(([h,t])=>`<a href="${h}" class="${h===active||(page==="lead"&&h==="#/leads")?'on':''}">${t}</a>`).join("");
+  document.getElementById("side").innerHTML = `<div class="brand">${esc(DB.admin.appName)}</div>${links}`;
+  document.getElementById("bottom").innerHTML = NAV.map(([h,t])=>`<a href="${h}" class="${h===active?'on':''}">${t.split(" ")[0]}</a>`).join("");
+}
+window.addEventListener("hashchange",()=>{ window.leadTab="profile"; render(); });
+render();
+</script>
+</body>
+</html>
