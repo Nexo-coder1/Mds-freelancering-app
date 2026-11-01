@@ -87,7 +87,7 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .dropzone b{display:block;color:var(--navy)}
 .dropzone small{color:var(--muted)}
 .files{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
-.file{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--sep);border-radius:var(--r-s);background:#fff}
+.file{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--sep);border-radius:var(--r-s);background:#fff;min-width:0}
 .file .thumb{width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--bg);flex:none;display:grid;place-items:center}
 .file .thumb img,.file .thumb video{width:100%;height:100%;object-fit:cover}
 .file .meta{flex:1;min-width:0}
@@ -408,7 +408,12 @@ function buildMessages(l,lang){
   if(lang==="EN") return en;
   const hi={
     "First Instagram DM":`नमस्ते ${first}, आपका ${l.category.toLowerCase()} कंटेंट बहुत अच्छा है। क्या मैं एक छोटा एडिट सैंपल भेज सकता हूँ?`,
-    "First WhatsApp Message":`नमस्ते ${first}, मैं Madhav हूँ। आपका Instagram देखा। क्या मैं एक सैंपल भेज सकता हूँ?`
+    "First WhatsApp Message":`नमस्ते ${first}, मैं Madhav हूँ। आपका Instagram देखा। क्या मैं एक सैंपल भेज सकता हूँ?`,
+    "Follow-up Message":`नमस्ते ${first}, पिछले मैसेज के बारे में पूछना चाहता था। क्या इस हफ्ते बात हो सकती है?`,
+    "Portfolio Sharing Message":`नमस्ते ${first}, मेरा पोर्टफोलियो यहाँ है: ${s.portfolio} । बताइए कौन सा स्टाइल आपको पसंद है।`,
+    "Paid Trial Proposal":`नमस्ते ${first}, मैं एक पेड ट्रायल देना चाहता हूँ: ${s.startPrice} में 3 रील्स, ${s.delivery} में डिलीवरी।`,
+    "Pricing Proposal":`नमस्ते ${first}, मेरे पैकेज: स्टार्टर ${s.startPrice} और मासिक ${s.monthly}।`,
+    "Monthly Contract Proposal":`नमस्ते ${first}, नियमित काम के लिए मासिक प्लान सुझाता हूँ: ${s.monthly}, ${s.delivery} में डिलीवरी। शुरू करें?`
   };
   return Object.fromEntries(MSG_TYPES.map(k=>[k, hi[k] ? hi[k] : en[k]+"\n(हिंदी अनुवाद अभी नहीं बना, demo)"]));
 }
@@ -420,9 +425,18 @@ function pageMessages(l){
     <textarea class="area" id="m${i}" style="margin-top:6px">${esc(msgs[k])}</textarea>
     <div class="btn-row"><button class="btn ghost sm" onclick="copyField('m${i}')">${ico("copy")} Copy</button>
     <button class="btn ghost sm" onclick="document.getElementById('m${i}').focus()">${ico("edit")} Edit</button>
-    <button class="btn ghost sm" onclick="notify('Regenerated (demo template)')">${ico("refresh")} Regenerate</button>
-    <a class="btn wa sm" target="_blank" rel="noopener" href="${waLink(l.cc,l.phone,msgs[k])}">${ico("send")} Send to WhatsApp</a></div></div>`).join("")}
+    <button class="btn ghost sm" onclick="resetMsg(${i},'${l.id}','${k}')">${ico("refresh")} Regenerate</button>
+    <button class="btn wa sm" onclick="sendWA('m${i}','${l.id}')">${ico("send")} Send to WhatsApp</button></div></div>`).join("")}
   <p class="hint">WhatsApp opens with the message pre-filled. You press Send yourself. Nothing is sent automatically.</p>`;
+}
+function resetMsg(i,leadId,k){
+  document.getElementById("m"+i).value=buildMessages(getLead(leadId),UI.msgLang)[k];
+  toast("Template regenerated; edits cleared. No AI is connected.");
+}
+function sendWA(taId,leadId){
+  const l=getLead(leadId);
+  window.open(waLink(l.cc,l.phone,document.getElementById(taId).value),"_blank","noopener");
+  toast("WhatsApp opened. Press Send there, then tap Mark as sent.");
 }
 function copyField(id){
   const t=document.getElementById(id); t.select();
@@ -439,7 +453,7 @@ function pageConversation(l){
     <b style="color:var(--navy)">Voice note</b>
     <div class="hint" style="margin:4px 0 10px">Record or upload your own instructions. Speech-to-text is not connected, so the transcript below is a placeholder.</div>
     <div class="btn-row" style="margin-top:0">
-      <button class="btn ${UI.recording?'danger':'ghost'} sm" onclick="toggleRecord()">${ico("mic")} ${UI.recording?'Stop recording (demo)':'Record voice'}</button>
+      <button class="btn ${UI.recording?'danger':'ghost'} sm" onclick="toggleRecord()">${ico("mic")} ${UI.recording?'Stop recording':'Record voice'}</button>
       <label class="btn ghost sm" style="cursor:pointer">${ico("upload")} Upload audio<input type="file" accept="audio/*" hidden onchange="uploadAudio(this)"></label>
     </div>
     ${UI.voiceUrl?`<audio controls src="${UI.voiceUrl}" style="width:100%;margin-top:10px"></audio>`:''}
@@ -454,7 +468,7 @@ function pageConversation(l){
     <h2 style="margin-top:12px">Hindi meaning of suggested response</h2><div class="msg">${esc(a.suggHi)}</div>
     <span class="src">${esc(a.source)}</span>
     <div class="btn-row"><button class="btn ghost sm" onclick="copyField('sug')">${ico("copy")} Copy</button>
-    <a class="btn wa sm" target="_blank" rel="noopener" href="${waLink(l.cc,l.phone,a.suggestion)}" onclick="logOutgoing('${l.id}')">${ico("send")} Send to WhatsApp</a></div></div>`:""}`;
+    <button class="btn wa sm" onclick="sendWA('sug','${l.id}')">${ico("send")} Send to WhatsApp</button><button class="btn ghost sm" onclick="logOutgoing('${l.id}')">${ico("check")} Mark as sent</button></div></div>`:""}`;
 }
 function analyzeReply(id){
   const text=document.getElementById("reply").value.trim();
@@ -470,15 +484,25 @@ function analyzeReply(id){
 function logOutgoing(id){
   const v=document.getElementById("sug").value;
   DB.conv[id]=[...(DB.conv[id]||[]),{dir:"out",text:v}];
-  toast("WhatsApp opened. Press Send there.");
+  toast("Recorded as sent.");
   setTimeout(render,50);
 }
-let recTimer=null;
-function toggleRecord(){
-  UI.recording=!UI.recording;
-  if(UI.recording){ toast("Demo recording started. No audio is captured."); }
-  else { UI.voiceUrl=null; toast("Demo recording stopped."); }
-  render();
+let recorder=null, recStream=null, recChunks=[];
+async function toggleRecord(){
+  if(UI.recording){ recorder.stop(); return; }
+  if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){ toast("Recording is not supported in this browser. Use Upload audio instead."); return; }
+  try{
+    recStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[]; recorder=new MediaRecorder(recStream);
+    recorder.ondataavailable=e=>recChunks.push(e.data);
+    recorder.onstop=()=>{
+      recStream.getTracks().forEach(t=>t.stop()); recStream=null; UI.recording=false;
+      if(UI.voiceUrl) URL.revokeObjectURL(UI.voiceUrl);
+      UI.voiceUrl=URL.createObjectURL(new Blob(recChunks,{type:recorder.mimeType||"audio/webm"}));
+      render();
+    };
+    recorder.start(); UI.recording=true; render();
+  }catch(err){ toast("Microphone access was denied or is unavailable."); }
 }
 function uploadAudio(input){
   const f=input.files[0]; if(!f) return;
@@ -606,7 +630,10 @@ function render(){
   renderSide(); renderDrawer();
   if(keepQ==="q"){ const q=document.getElementById("q"); if(q){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); } }
 }
-window.addEventListener("hashchange",()=>{ UI.leadTab="profile"; closeDrawer(); render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange",()=>{
+  if(recorder?.state==="recording"){ recorder.onstop=()=>{ recStream?.getTracks().forEach(t=>t.stop()); recStream=null; UI.recording=false; }; recorder.stop(); }
+  UI.voiceUrl=null; UI.leadTab="profile"; closeDrawer(); render(); window.scrollTo(0,0);
+});
 window.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(UI.drawer) closeDrawer(); } });
 if(!location.hash) location.hash="#/dashboard";
 render();
